@@ -1397,6 +1397,18 @@ void prelu_backward_kernel(TensorIterator& iter) {
   });
 }
 
+void swiglu_kernel(TensorIterator &iter) {
+  if(at::isReducedFloatingType(iter.dtype())) {
+
+  } else {
+
+  }
+}
+
+void swiglu_backward_kernel(TensorIterator &iter) {
+
+}
+
 } // namespace
 
 
