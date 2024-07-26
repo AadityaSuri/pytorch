@@ -1397,12 +1397,37 @@ void prelu_backward_kernel(TensorIterator& iter) {
   });
 }
 
-void swiglu_kernel(TensorIterator &iter) {
-  if(at::isReducedFloatingType(iter.dtype())) {
 
+void swiglu_kernel(TensorIteratorBase& iter) {
+  if (at::isReducedFloatingType(iter.dtype())) {
+    AT_DISPATCH_REDUCED_FLOATING_TYPES(iter.dtype(), "swiglu_cpu", [&]() {
+      const Vectorized<float> kOneVec(1.0f);
+      cpu_kernel_vec(
+          iter,
+          [](scalar_t x) -> scalar_t {
+            return float(x) / (1.0f + std::exp(-float(x)));
+          },
+          [kOneVec](Vectorized<scalar_t> x_vec) -> Vectorized<scalar_t> {
+            auto [x_vec0, x_vec1] = convert_to_float<scalar_t>(x_vec);
+            return convert_from_float<scalar_t>(
+              x_vec0 / (kOneVec + x_vec0.neg().exp()),
+              x_vec1 / (kOneVec + x_vec1.neg().exp()));
+          });
+    });
   } else {
-
-  }
+    AT_DISPATCH_FLOATING_TYPES(
+      iter.dtype(), "swiglu_cpu", [&]() {
+        const Vectorized<scalar_t> kOneVec(scalar_t(1));
+        cpu_kernel_vec(
+            iter,
+            [](scalar_t x) {
+              return x / (scalar_t(1) + std::exp(-x));
+            },
+            [kOneVec](Vectorized<scalar_t> x_vec) {
+              return x_vec / (kOneVec + x_vec.neg().exp());
+            });
+      });
+    }
 }
 
 void swiglu_backward_kernel(TensorIterator &iter) {
